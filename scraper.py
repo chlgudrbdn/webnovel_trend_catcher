@@ -72,13 +72,15 @@ if __name__=='__main__':
         # 그 작품에서 어느 댓글까지 읽었는지 추적하는 별도 컬럼(댓글 삭제까지 감안)
         # 다른 하나는 댓글 목록
 
-    }  # 저장은 일단 csv로. 추후 더 확장될 여지를 감안해 구글 빅쿼리에 업로드 고려
+    }
+
+    # 저장은 일단 csv로. 추후 더 확장될 여지를 감안해 구글 빅쿼리에 업로드 고려
     site_class_list = [## 분산처리 절차 : 카카오 스테이지에서 더 확장하긴 어려울것 같지만 그래도 process spawning 사용
         cls_per_platform.kakaostage()
         # kakaopage # 작품이 너무 많아 실시간 변동을 알기 어려움.
         # naver series # 작품이 너무 많아 실시간 변동을 확인하는 것은 포기. 72,036개 작품
         # https://series.naver.com/novel/categoryProductList.series?categoryTypeCode=all
-        # 그외 커뮤니티 : 추가적으로 주제 탐색 기능이 필요함. 가급적 후순위.
+        # 그외 커뮤니티 : 추가적으로 주제 추론 모듈이 필요함. 가급적 후순위.
     ]
 
     try:
@@ -90,23 +92,19 @@ if __name__=='__main__':
     process_list = []
     return_dict = Manager().dict()
     for i in range(len(site_class_list)):
-        p = Process(target=site_class_list[i].scraping, args=(i, option_json, return_dict)) #{"query": query}))
+        p = Process(target=site_class_list[i].crawling, args=(i, option_json, return_dict)) #{"query": query}))
         p.start()
         process_list.append(p)
-    #for process in process_list:
 
     # print(return_dict.values()) # 새로 읽어들인 것들
 
     for process in process_list:
         process.join()
     print('Done', flush=True)
-    # for x, y in return_dict.items():
     for val in return_dict.values():  # 사이트를 나타내는 key는 사실 큰 쓸모 없음.
         newly_saw_contest = pd.DataFrame(val)
-        # newly_saw_contest['view_date'] = view_date
-        # newly_saw_contest['status'] = 0  # 이건 내가 확인 후 파이참에서 일일이 봤는지 어떤지 적어야한다
-        contest_seen = pd.concat([contest_seen, newly_saw_contest]).drop_duplicates().reset_index(drop=True)
+        comment_seen = pd.concat([comment_seen, newly_saw_contest]).drop_duplicates().reset_index(drop=True)
 
     # print(contest_seen)
 
-    contest_seen.to_csv("contest_seen.csv", index=False)
+    comment_seen.to_csv("comment_seen.csv", index=False)
