@@ -60,13 +60,14 @@ def chromedriver_update():
 if __name__=='__main__':
     chrome_driver_path = chromedriver_update()  # 크롬 최신화
     view_date = datetime.now().strftime('%Y-%m-%d')  # %H-%M-%S')
+    genre_li = ['fantasy', 'modfan', 'orifan', 'romance', 'rofan', 'bl', 'free']
     option_json = {
         'chrome_driver_path' : chrome_driver_path,
         'site_list':[  # site_list[n].format(genre=genre[m]) 같은 방식으로 입력
-            'https://pagestage.kakao.com/{genre}/novels?sortType=NEWEST',
+            'https://pagestage.kakao.com/{genre}/novels?sortType=NEWEST'.format(genre=g) for g in genre_li
         ],
         'site_name_list' : [
-            '카카오스테이지'
+            '카카오스테이지' for i in range(genre_li)
         ],
         # DB는 크게 2개가 될것. 하나는 플랫폼과 작품 목록(novels 뒤에 소설 번호로 식별되는 체계)에
         # 그 작품에서 어느 댓글까지 읽었는지 추적하는 별도 컬럼(댓글 삭제까지 감안)
@@ -76,7 +77,7 @@ if __name__=='__main__':
 
     # 저장은 일단 csv로. 추후 더 확장될 여지를 감안해 구글 빅쿼리에 업로드 고려
     site_class_list = [## 분산처리 절차 : 카카오 스테이지에서 더 확장하긴 어려울것 같지만 그래도 process spawning 사용
-        cls_per_platform.kakaostage()
+        cls_per_platform.kakaostage() for i in range(genre_li)
         # kakaopage # 작품이 너무 많아 실시간 변동을 알기 어려움.
         # naver series # 작품이 너무 많아 실시간 변동을 확인하는 것은 포기. 72,036개 작품
         # https://series.naver.com/novel/categoryProductList.series?categoryTypeCode=all

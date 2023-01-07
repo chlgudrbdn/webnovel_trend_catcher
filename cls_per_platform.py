@@ -27,7 +27,7 @@ class site:
         self.scrape_dict = {}
         # 멀티프로세싱 단위(개인적으로는 가장 먼저 코어 수 만큼 갈라져나가는 정도가 적절).
         # spawning은 우선순위가 낮으니 일단 for loop 돌아가게 한다.
-        self.multi = []  # 카카오스테이지의 경우 장르가 적절
+        # self.multi = []  # 카카오스테이지의 경우 장르가 적절
         # 각 페이지 별로 원하는 정보는 다름
         self.col_name_list = []
 
@@ -56,12 +56,12 @@ class site:
         # 쿼리 못치면 open_browser 함수를 거치던가 하는식이 되는게 무난.
         # print(q)
 
-    def scanning_site(self):  #오버라이딩용 # 그러나 최대한 xpath나 selector로 찾는건 공통될 것
+    def find_pagelist(self):  #오버라이딩용 # 그러나 최대한 xpath나 selector로 찾는건 공통될 것
         try:
             self.page_list = self.driver.find_element(by=By.XPATH, value=self.page_list_selector)
             self.current_page_num = int(self.page_list.find_elements(by=By.CLASS_NAME, value=self.current_page_num_selector).text)
             self.max_page_num = int(self.page_list.find_elements(by=By.CLASS_NAME, value=self.max_page_num_selector).text)
-            self.title_list = self.driver.find_element(by=By.XPATH, value=self.title_list_selector)\
+            self.title_list = self.driver.find_element(by=By.XPATH, value=self.title_list_selector) \
                 .find_elements(by=By.TAG_NAME, value='a')
             self.next_btn = self.page_list.find_element(by=By.CLASS_NAME, value=self.next_btn_selector)
         except StaleElementReferenceException as e :
@@ -71,14 +71,13 @@ class site:
     def scanning_content(self, cont):  #오버라이딩용 # 사이트마다, 작품 목록, 에피소드, 댓글, 여부에 따라 갈림
         pass
 
-    def href_li_get(self, q, content_seen): # 이것도 조금씩 차이 날 것
+    def href_li_get(self, col_name_list, col_selector_list): # 이것도 조금씩 차이 날 것
         href_dict = {
-            column_name[0] : [], column_name[1] : [], column_name[2] : [], column_name[3] : []
-        }#pd.DataFrame(columns=column_name)   # 주소외에 여러 정보를 굳이 클릭해야 확인 할 수 도 있음.
-        # ['query', 'title', 'link', 'due_date', 'view_date' 나중에 한꺼번에, 'status'이건 그냥 일괄처리]  # 링크로
+            col_name : [] for col_name in self.col_name_list
+        }
         # break_check = False
         for contest in self.content_list:
-            title, link, due_date = self.scanning_content(contest)
+            title, link, due_date = self.find_pagelist(contest)
             if not ((content_seen.loc[content_seen[column_name[1]]] == title) &
                     # (contest_seen.loc[contest_seen[column_name[2]]] == link) &
                     (content_seen.loc[content_seen[column_name[3]]] == due_date)).empty:
@@ -113,25 +112,12 @@ class site:
                     return True
             return False
 
-
-    def scraping(self, col_name_list, ):
-        scrape_dict = {
-            col_name : [] for col_name in col_name_list
-        }
-        return scrape_dict
-
-    def crawling(self, i_th, option_json, return_dict):  # 전반적 흐름일 뿐 중간에 프로세스 더 박아넣어도 괜찮다.
+    def crawling(self, i_th, option_json, return_dict):  # 전반적 흐름일 뿐 중간에 프로세스 더 추가해도 괜찮다.
         # print(f"scrape start PID : {os.getppid()}")
 
         check_more = True
 
-        ctx = mp.get_context('spawn')
-
-
-        for q in self.multi:
-            a = ctx.Process(target=self., args=(q,))
-            a.start()
-
+        for q in option_json['site_list']:
             self.search_query(q, i_th, option_json)
             check_more = self.scanning_site()  # 필요한 elem 위치 확인
 
@@ -164,26 +150,6 @@ class kakaostage(site):
 
     def __init__(self, *args):
         super(site, self).__init__()
-        # 외부로 보낼 결과물
-        # 멀티프로세싱 단위(개인적으로는 가장 먼저 코어 수 만큼 갈라져나가는 정도가 적절)
-        self.multi = ['fantasy', 'modfan', 'orifan', 'romance', 'rofan', 'bl', 'free']  # 카카오스테이지의 경우 장르가 적절
-        # 각 페이지 별로 원하는 정보는 다름. 그걸 사전에 정의.
-        self.col_name_list = []
-
-        # 전형적인 게시물 번호로 접근하는 페이지 형태 제공 될 경우 사용(댓글이 페이지 형태로 제공되는 재활용 고려).
-        self.page_list = None
-        self.page_list_selector = None
-        self.current_page_num = 0
-        self.current_page_num_selector = None
-        self.max_page_num = 0  # 당장 브라우저에서 보이는 것 중에서 가장 큰 페이지 값을 의미. 정말 최대는 아님.
-        self.max_page_num_selector = None
-        self.next_btn = None
-        self.next_btn_selector= '' # 페이지형태가 아니라도 쓰임
-        self.going_to_page_num = 0 # current_page_num가 늘어났는데 실제 페이지는 늘지 않는지 확인하는 용도.
-
-        self.title_list = None  # 리스트 그 자체. 조회수, 에피소드의 수 등을 체크하는 기준.
-        self.title_list_selector = ''
-        # 각 작품의 조회수가 변치 않으면 그건 댓글이 늘지 않은 것과 동일하다고 간주하고 해당 리스트를 다음 프로세스로 넘김.
     """
          'novel_column_name': [
             'stage_serial_num', 'pen_name', 'genre', 'title', 'introduce', 'age_limit',
@@ -217,7 +183,7 @@ class kakaostage(site):
         # self.driver.find_element(by=By.XPATH, value='//*[@id="container"]/div[2]/div[1]/div[2]/form/div/div/span[3]/input').click()
         # 전달이 잘 안된다. 귀찮으니 그냥 주소 바꾸는 걸로 우선 구현
         self.driver = webdriver.Chrome(option_json['chrome_driver_path'])
-        self.driver.get(option_json['contest_site_list'][i_th]+q)
+        self.driver.get(option_json['site_list'][i_th])
 
     def scanning_site(self):  # 그러나 최대한 xpath나 selector로 찾는건 공통될 것
         try:
@@ -230,12 +196,12 @@ class kakaostage(site):
             print(e)
             return False
 
-    def scanning_contest(self, contest):
+    def scanning_contest(self, col_name):
         # print(contest.find_element(by=By.CLASS_NAME, value=self.title_selector).text)
         title = contest.find_element(by=By.CLASS_NAME, value=self.title_selector).find_element(by=By.TAG_NAME, value='a').text
         link = contest.find_element(by=By.TAG_NAME, value=self.link_selector).get_attribute('href')
         d_day = int(re.findall(r'\d+', contest.find_element(by=By.CLASS_NAME, value='day').text)[0]) - 1
-        print('wevity d_day', d_day)
+
         due_date = datetime.now() + timedelta(days=d_day)
         due_date = due_date.strftime('%Y-%m-%d')
         return title, link, due_date
